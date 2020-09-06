@@ -2,10 +2,14 @@
 
 class Station
 
+  attr_reader :trains, :station_name
+
   # Имеет название, которое указывается при ее создании
 
   def initialize(station_name)
     @station_name = station_name
+    @trains = []
+
   end
 
   # Может принимать поезда (по одному за раз)
@@ -17,22 +21,25 @@ class Station
   # Может возвращать список всех поездов на станции, находящиеся в текущий момент
 
   def show_trains
-    @trains.each { |train| puts train }
+    @trains.each { |train| puts train.number }
   end
 
   # Может возвращать список поездов на станции по типу (см. ниже): кол-во
   # грузовых, пассажирских
 
   def show_trains_by_type
-    puts cargo_num
-    puts passenger_num
+    @cargo =  @trains.count { |train| train.type == 'cargo'}
+    @passenger =  @trains.count { |train| train.type == 'passenger'}
+
+    puts "cargo: #{@cargo}"
+    puts "passenger: #{@passenger}"
   end
 
   # Может отправлять поезда (по одному за раз, при этом, поезд удаляется из списка
   # поездов, находящихся на станции).
 
   def departure(train)
-    @trains.drop(train)
+    @trains.delete(train)
   end
 end
 
@@ -45,70 +52,62 @@ end
 
 class Route
 
+  attr_reader :start_point, :end_point, :points
   # Имеет начальную и конечную станцию, а также список промежуточных станций.
   # Начальная и конечная станции указываютсся при создании маршрута,
 
   def initialize (start_point, end_point)
     @start_point = start_point
     @end_point  = end_point
+    @points = []
+    @points << @start_point
+    @points << @end_point
   end
 
   # а промежуточные могут добавляться между ними.
 
-  def add_point(point)
-    @points << point
+  def add_point(station)
+    @points.shift && @points.pop
+    @points << station
+    @points.unshift(@start_point) && @points.push(@end_point)
   end
 
   # Может удалять промежуточную станцию из списка
 
   def delete_point(point)
-    @points.drop(point)
+    @points.delete(point) unless point === @points.first || point === @points.last
   end
 
-  def show_points
-    puts @start_point
-    puts @points
-    puts @end_point
+  def show_route
+    @points.each.with_index(1) { |point, index| puts "Станция - #{index}: #{point.station_name}" }
   end
 
 end
 
 # Класс Train (Поезд):
 
-
-
-
-
-
-# Может принимать маршрут следования (объект класса Route).
-# При назначении маршрута поезду, поезд автоматически помещается на первую
-#   станцию в маршруте.
-# Может перемещаться между станциями, указанными в маршруте. Перемещение
-#   возможно вперед и назад, но только на 1 станцию за раз.
 # Возвращать предыдущую станцию, текущую, следующую, на основе маршрута
 
 class Train
 
   # Имеет номер (произвольная строка) и тип (грузовой, пассажирский) и количество
   # вагонов, эти данные указываются при создании экземпляра класса
-  attr_reader :speed
+  attr_reader :speed, :number_of_wagons, :route, :number, :type
 
   # Может возвращать количество вагонов
-  attr_reader :number_of_wagons
-
-  attr_accessor :route
 
   def initialize(number, type, number_of_wagons)
-    @number = number_of_wagons
+    @number = number
     @type = type
     @number_of_wagons = number_of_wagons
     @speed = 0
+    @route = nil
   end
 
   # Может набирать скорость
 
   def speed_up(speed)
-    @speed += speed
+    @speed += speed if speed > 0
   end
 
   # Может тормозить (сбрасывать скорость до нуля)
@@ -126,14 +125,82 @@ class Train
   end
 
   def detach
-    @number_of_wagons -= 1 if @speed == 0
+    @number_of_wagons -= 1 if @speed == 0 && self.number_of_wagons > 0
   end
 
-  def set_route
+  # Может принимать маршрут следования (объект класса Route).
+  # При назначении маршрута поезду, поезд автоматически помещается на первую
+  #   станцию в маршруте.
 
+  def set_route(route)
+    @route = route
+    @route.start_point.add_train(self) if !@route.start_point.trains.include?(self)
   end
 
+
+  # Может перемещаться между станциями, указанными в маршруте. Перемещение
+  #   возможно вперед и назад, но только на 1 станцию за раз.
+
+  def move_forward
+        self.route.points.each_with_index do |point, index|
+          if point.trains.include?(self) && point != self.route.points.last
+            point.departure(self)
+            puts self.route.points[index + 1].add_train(self)
+            break
+          end
+        end
+  end
+
+  def move_backward
+        self.route.points.each_with_index do |point, index|
+          if point.trains.include?(self) && point != self.route.points.first
+            point.departure(self)
+            puts self.route.points[index - 1].add_train(self)
+            break
+          end
+        end
+  end
 
 end
+
+=begin Для проверки, чтобы в ручную не писать.
+
+s1 = Station.new('Moscow')
+s2 = Station.new('Arkhangelsk')
+s3 = Station.new('Voronezh')
+s4 = Station.new('Dubna')
+s5 = Station.new('Kursk')
+s6 = Station.new('Lipetsk')
+s7 = Station.new('Nizhny Novgorod')
+s8 = Station.new('Oryol')
+s9 = Station.new('Penza')
+s10 = Station.new('Ryazan')
+s11 = Station.new('Saint Petersburg')
+s12 = Station.new('Tambov')
+s13 = Station.new('Tver')
+s14 = Station.new('Tula')
+s15 = Station.new('Chelyabinsk')
+s16 = Station.new('Elista')
+s17 = Station.new('Yaroslavl')
+
+r1 = Route.new(s1, s4)
+r2 = Route.new(s5, s8)
+r3 = Route.new(s9, s13)
+r4 = Route.new(s14, s17)
+
+
+# cargo passenger
+
+t1 = Train.new('0001', 'passenger', 5)
+t2 = Train.new('0002', 'passenger', 10)
+t3 = Train.new('0003', 'passenger', 7)
+t4 = Train.new('0004', 'cargo', 20)
+t5 = Train.new('0005', 'cargo', 15)
+t6 = Train.new('0006', 'cargo', 32)
+
+t1.set_route(r1)
+
+=end
+
 
 
