@@ -19,20 +19,19 @@ class Station
   end
 
   # Может возвращать список всех поездов на станции, находящиеся в текущий момент
-
-  def show_trains
-    @trains.each { |train| puts train.number }
-  end
-
+  # --- есть attr_reader на :trains, снёс метод show_trains
   # Может возвращать список поездов на станции по типу (см. ниже): кол-во
   # грузовых, пассажирских
+
+  #--- убрал puts-ы, создал хэш
 
   def show_trains_by_type
     @cargo =  @trains.count { |train| train.type == 'cargo'}
     @passenger =  @trains.count { |train| train.type == 'passenger'}
-
-    puts "cargo: #{@cargo}"
-    puts "passenger: #{@passenger}"
+    @trains_by_type = {
+      cargo: @cargo,
+      passenger: @passenger
+    }
   end
 
   # Может отправлять поезда (по одному за раз, при этом, поезд удаляется из списка
@@ -52,35 +51,41 @@ end
 
 class Route
 
-  attr_reader :start_point, :end_point, :points
+# --- point переименовал в station
+
+  attr_reader :start_station, :end_station, :stations
   # Имеет начальную и конечную станцию, а также список промежуточных станций.
   # Начальная и конечная станции указываютсся при создании маршрута,
 
-  def initialize (start_point, end_point)
-    @start_point = start_point
-    @end_point  = end_point
-    @points = []
-    @points << @start_point
-    @points << @end_point
+  def initialize (start_station, end_station)
+    @start_station = start_station
+    @end_station  = end_station
+    @stations = []
+    @stations << @start_station
+    @stations << @end_station
   end
 
   # а промежуточные могут добавляться между ними.
 
-  def add_point(station)
-    @points.shift && @points.pop
-    @points << station
-    @points.unshift(@start_point) && @points.push(@end_point)
+  def add_station(station)
+    @stations.shift && @stations.pop
+    @stations << station
+    @stations.unshift(@start_station) && @stations.push(@end_station)
   end
 
   # Может удалять промежуточную станцию из списка
+  #--- оператор === заменил на ==
 
-  def delete_point(point)
-    @points.delete(point) unless point === @points.first || point === @points.last
+  def delete_station(station)
+    @stations.delete(station) unless station == @stations.first || station == @stations.last
   end
 
+# --- закоментировал, есть attr_reader на stations
+=begin
   def show_route
-    @points.each.with_index(1) { |point, index| puts "Станция - #{index}: #{point.station_name}" }
+    @stations.each.with_index(1) { |station, index| puts "Станция - #{index}: #{station.station_name}" }
   end
+=end
 
 end
 
@@ -134,7 +139,7 @@ class Train
 
   def set_route(route)
     @route = route
-    @route.start_point.add_train(self) if !@route.start_point.trains.include?(self)
+    @route.start_station.add_train(self) if !@route.start_station.trains.include?(self)
   end
 
 
@@ -142,24 +147,32 @@ class Train
   #   возможно вперед и назад, но только на 1 станцию за раз.
 
   def move_forward
-        self.route.points.each_with_index do |point, index|
-          if point.trains.include?(self) && point != self.route.points.last
-            point.departure(self)
-            puts self.route.points[index + 1].add_train(self)
+        @route.stations.each_with_index do |station, index|
+          if station.trains.include?(self) && station != @route.stations.last
+            station.departure(self)
+            @route.stations[index + 1].add_train(self)
+            puts "Следующая: #{@route.stations[index + 2].station_name}" unless @route.stations[index + 2].nil?
+            puts "Текущая: #{@route.stations[index + 1].station_name} <-- "
+            puts "Предыдущая: #{@route.stations[index].station_name}" unless @route.stations[index].nil?
             break
           end
         end
   end
 
   def move_backward
-        self.route.points.each_with_index do |point, index|
-          if point.trains.include?(self) && point != self.route.points.first
-            point.departure(self)
-            puts self.route.points[index - 1].add_train(self)
+        @route.stations.each_with_index do |station, index|
+          if station.trains.include?(self) && station != @route.stations.first
+            station.departure(self)
+            @route.stations[index - 1].add_train(self)
+            puts "Следующая: #{@route.stations[index - 2].station_name}" unless @route.stations[index - 2].nil?
+            puts "Текущая: #{@route.stations[index - 1].station_name} <-- "
+            puts "Предыдущая: #{@route.stations[index].station_name}" unless @route.stations[index].nil?
             break
           end
         end
   end
+
+
 
 end
 
